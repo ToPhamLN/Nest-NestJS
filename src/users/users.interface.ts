@@ -1,10 +1,16 @@
-
-export enum Role {
-    ADMIN = "admin",
-    USER = "user",
+export enum ERole {
+  ADMIN = 'admin',
+  USER = 'user'
 }
-export type User = {
-    email: string;
-    password: string;
-    role: Role;
-};
+export type TUser = {
+  email: string
+  username: string
+  password: string
+  role: ERole
+}
+
+export type TBodyRequest = {
+  email: string
+  username: string
+  password: string
+}
