@@ -7,14 +7,18 @@ import {
   Patch,
   Post,
   Query,
-  UploadedFile,
   UploadedFiles,
+  // UploadedFile,
   UseInterceptors
 } from '@nestjs/common'
+import {
+  FileFieldsInterceptor,
+  FilesInterceptor
+  // FileInterceptor
+} from '@nestjs/platform-express'
 import { UsersService } from './users.service'
-import { ERole, TBodyRequest } from './users.interface'
+import { ERole, TBodyRequest, TMultipleFiles } from '../interface/users.interface'
 import storage from 'src/config/config.multer'
-import { FileInterceptor } from '@nestjs/platform-express'
 
 @Controller('users')
 export class UsersController {
@@ -25,13 +29,12 @@ export class UsersController {
   }
 
   @Post('create') //Create user
-  @UseInterceptors(FileInterceptor('avatar', { storage }))
+  @UseInterceptors(FilesInterceptor('avatar', 5, { storage }))
   createUser(
     @Body() body: TBodyRequest,
     @UploadedFiles() files: Array<Express.Multer.File>
   ) {
-    console.log(files)
-    return body
+    return this.usersService.createUser(body, files)
   }
 
   @Get('get/:id') //Get user/:id
@@ -39,12 +42,25 @@ export class UsersController {
     return { id }
   }
 
-  @Patch('/update/:id') //Update
-  updateUser(@Param('id') id: string, @Body() body: TBodyRequest) {
-    return { id, body }
+  @Patch('/update/:id') //Update user
+  @UseInterceptors(
+    FileFieldsInterceptor(
+      [
+        { name: 'avatar', maxCount: 5 },
+        { name: 'background', maxCount: 5 }
+      ],
+      { storage }
+    )
+  )
+  updateUser(
+    @Param('id') id: string,
+    @Body() body: TBodyRequest,
+    @UploadedFiles() files: TMultipleFiles
+  ) {
+    return this.usersService.updateUser(id, body, files)
   }
 
-  @Delete('delete/:id') //Delete
+  @Delete('delete/:id') //Delete user
   deleteUser(@Param('id') id: string) {
     return { id }
   }

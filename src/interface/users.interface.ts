@@ -1,6 +1,6 @@
 export enum ERole {
-  ADMIN = 'admin',
-  USER = 'user'
+  ADMIN = 'Admin',
+  USER = 'User'
 }
 export type TUser = {
   email: string
@@ -13,4 +13,9 @@ export type TBodyRequest = {
   email: string
   username: string
   password: string
+}
+
+export type TMultipleFiles = {
+  avatar?: Express.Multer.File[]
+  background?: Express.Multer.File[]
 }
