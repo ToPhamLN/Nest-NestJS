@@ -44,7 +44,7 @@ module.exports = {
         useTabs: false,
         embeddedLanguageFormatting: 'auto',
         endOfLine: 'auto',
-        printWidth: 85,
+        printWidth: 65,
         jsxSingleQuote: true
       }
     ]
