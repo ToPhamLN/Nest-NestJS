@@ -4,7 +4,7 @@ import { ConfigService } from '@nestjs/config'
 import RegisterDto from './dto/register.dto'
 import { InjectModel } from '@nestjs/mongoose'
 import { User } from 'src/schemas/users.schema'
-import { Model } from 'mongoose'
+import { Model, Types } from 'mongoose'
 import bcrypt from 'bcrypt'
 
 @Injectable()
@@ -16,7 +16,7 @@ export class AuthService {
   ) {}
 
   async register(registerDto: RegisterDto) {
-    const { email, password } = registerDto
+    const { email, password, username } = registerDto
 
     const existAuth = await this.userModel.findOne({ email })
 
@@ -29,22 +29,32 @@ export class AuthService {
 
     const newAuth = new this.userModel({
       email,
-      password: hashed
+      password: hashed,
+      username
     })
     const auth = await newAuth.save()
 
-    // Omit the password from the response
-    const { password: _, ...other } = auth.toObject()
-    const accessToken = generateAccessToken(auth)
-    const refreshToken = generateRefreshToken(auth)
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { password: omitPassword, ...other } = auth.toObject()
+    const accessToken = this.generateAccessToken(
+      auth._id,
+      auth.role
+    )
+    const refreshToken = this.generateRefreshToken(
+      auth._id,
+      auth.role
+    )
 
     return { auth: { ...other, accessToken }, refreshToken }
   }
 
-  async generateTokens(userId: string, role: string) {
-    const payload = { userId, username }
+  async generateAccessToken(
+    userId: Types.ObjectId,
+    role: string
+  ) {
+    const payload = { userId, role }
 
-    const accessToken = this.jwtService.sign(payload, {
+    return this.jwtService.sign(payload, {
       secret: this.configService.get<string>(
         'jwt.accessTokenSecret'
       ),
@@ -52,8 +62,14 @@ export class AuthService {
         'jwt.accessTokenExpiresIn'
       )
     })
+  }
 
-    const refreshToken = this.jwtService.sign(payload, {
+  async generateRefreshToken(
+    userId: Types.ObjectId,
+    role: string
+  ) {
+    const payload = { userId, role }
+    return this.jwtService.sign(payload, {
       secret: this.configService.get<string>(
         'jwt.refreshTokenSecret'
       ),
@@ -61,8 +77,6 @@ export class AuthService {
         'jwt.refreshTokenExpiresIn'
       )
     })
-
-    return { accessToken, refreshToken }
   }
 
   async verifyToken(token: string, secret: string) {

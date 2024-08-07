@@ -2,31 +2,40 @@ import {
   Controller,
   Post,
   Body,
-  UseGuards,
-  Req,
-  Get
+  Res,
+  HttpStatus
 } from '@nestjs/common'
 import { AuthService } from './auth.service'
-import { RefreshTokenGuard } from './token.guard'
+import RegisterDto from './dto/register.dto'
+import { Response } from 'express'
 
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
-  @Post('/login')
-  async login(@Body() loginDto: any) {
-    const { userId, username } = loginDto
-    const user = await this.authService.register(loginDto)
-    return this.authService.generateTokens(userId, username)
-  }
+  @Post('/register')
+  async login(
+    @Body() registerDto: RegisterDto,
+    @Res() res: Response
+  ) {
+    try {
+      const { auth, refreshToken } =
+        await this.authService.register(registerDto)
 
-  @UseGuards(RefreshTokenGuard)
-  @Get('/refresh')
-  async refresh(@Req() req) {
-    const user = req.user
-    return this.authService.generateTokens(
-      user.userId,
-      user.username
-    )
+      res.cookie('refreshToken', refreshToken, {
+        httpOnly: true,
+        secure: false,
+        path: '/',
+        sameSite: 'strict'
+      })
+
+      return res.status(HttpStatus.OK).json({
+        auth
+      })
+    } catch (error) {
+      return res
+        .status(HttpStatus.INTERNAL_SERVER_ERROR)
+        .json({ error: error.message })
+    }
   }
 }
