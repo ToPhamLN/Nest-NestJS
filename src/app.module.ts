@@ -9,6 +9,7 @@ import { UsersController } from './users/users.controller'
 import { UsersModule } from './users/users.module'
 import nodeConfig from './config/node.config'
 import jwtConfig from './config/jwt.config'
+import { JwtService } from '@nestjs/jwt'
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -19,6 +20,6 @@ import jwtConfig from './config/jwt.config'
     UsersModule
   ],
   controllers: [AppController, UsersController],
-  providers: [AppService, AuthService]
+  providers: [AppService, AuthService, JwtService]
 })
 export class AppModule {}
