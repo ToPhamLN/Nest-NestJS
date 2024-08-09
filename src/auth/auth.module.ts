@@ -1,3 +1,4 @@
+import { LoggerService } from './../logger/logger.service'
 import { MongooseModule } from '@nestjs/mongoose'
 import { Module } from '@nestjs/common'
 import { AuthController } from './auth.controller'
@@ -19,6 +20,7 @@ import { User, UserSchema } from 'src/schemas/users.schema'
   ],
   controllers: [AuthController],
   providers: [
+    LoggerService,
     AuthService,
     AccessTokenStrategy,
     RefreshTokenStrategy,
@@ -35,6 +37,6 @@ import { User, UserSchema } from 'src/schemas/users.schema'
       inject: [ConfigService]
     }
   ],
-  exports: [MongooseModule]
+  exports: [MongooseModule, AuthService]
 })
 export class AuthModule {}

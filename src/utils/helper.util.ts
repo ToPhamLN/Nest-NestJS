@@ -1,13 +1,20 @@
 import fs from 'fs/promises'
 import path from 'path'
 
-export const deleteImage = async (fileName: string): Promise<void> => {
+export const deleteImage = async (
+  fileName: string
+): Promise<void> => {
   try {
     let filePath: string
     if (fileName.includes('uploads')) {
       filePath = path.join(__dirname, '../../', fileName)
     } else {
-      filePath = path.join(__dirname, '../../', 'uploads', fileName)
+      filePath = path.join(
+        __dirname,
+        '../../',
+        'uploads',
+        fileName
+      )
     }
 
     await fs.access(filePath)

@@ -3,12 +3,13 @@ import { JwtService } from '@nestjs/jwt'
 import { ConfigService } from '@nestjs/config'
 import RegisterDto from './dto/register.dto'
 import { InjectModel } from '@nestjs/mongoose'
-import { User } from 'src/schemas/users.schema'
-import { Model, Types } from 'mongoose'
+import { User, UserDocument } from 'src/schemas/users.schema'
+import { Model } from 'mongoose'
 import bcrypt from 'bcrypt'
 
 @Injectable()
 export class AuthService {
+  private refreshTokens: string[] = []
   constructor(
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
@@ -21,7 +22,7 @@ export class AuthService {
     const existAuth = await this.userModel.findOne({ email })
 
     if (existAuth) {
-      throw new ConflictException('Email này đã tồn tại')
+      throw new ConflictException('Email already exists')
     }
 
     const salt = await bcrypt.genSalt(10)
@@ -36,23 +37,73 @@ export class AuthService {
 
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { password: omitPassword, ...other } = auth.toObject()
-    const accessToken = this.generateAccessToken(
-      auth._id,
-      auth.role
-    )
-    const refreshToken = this.generateRefreshToken(
-      auth._id,
-      auth.role
-    )
+    const accessToken = await this.generateAccessToken(auth)
+    const refreshToken = await this.generateRefreshToken(auth)
+    this.refreshTokens.push(refreshToken)
 
     return { auth: { ...other, accessToken }, refreshToken }
   }
 
-  async generateAccessToken(
-    userId: Types.ObjectId,
-    role: string
-  ) {
-    const payload = { userId, role }
+  async signIn(registerDto: RegisterDto) {
+    const { email, password } = registerDto
+
+    const existAuth = await this.userModel.findOne({ email })
+    if (!existAuth) {
+      throw new ConflictException('Email not found')
+    }
+
+    const isMatch = await bcrypt.compare(
+      password,
+      existAuth.password
+    )
+    if (!isMatch) {
+      throw new ConflictException('Password is incorrect')
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { password: omitPassword, ...other } =
+      existAuth.toObject()
+    const accessToken = await this.generateAccessToken(existAuth)
+    const refreshToken =
+      await this.generateRefreshToken(existAuth)
+    this.refreshTokens.push(refreshToken)
+
+    return { auth: { ...other, accessToken }, refreshToken }
+  }
+
+  async refresh(refreshToken: string) {
+    if (!refreshToken) {
+      throw new ConflictException("You're not authenticated. ")
+    }
+    if (!this.refreshTokens.includes(refreshToken)) {
+      throw new ConflictException('Refresh token is not valid. ')
+    }
+
+    const user = this.jwtService.verify(refreshToken, {
+      secret: process.env.JWT_REFRESH_KEY
+    })
+
+    this.refreshTokens = this.refreshTokens.filter(
+      (token) => token !== refreshToken
+    )
+    const newAccessToken = await this.generateAccessToken(user)
+    const newRefreshToken = await this.generateRefreshToken(user)
+    this.refreshTokens.push(newRefreshToken)
+
+    return {
+      accessToken: newAccessToken,
+      refreshToken: newRefreshToken
+    }
+  }
+  async logout(refreshToken: string): Promise<any> {
+    this.refreshTokens = this.refreshTokens.filter(
+      (tokenItem) => tokenItem !== refreshToken
+    )
+    return { message: 'Logged out successfully!' }
+  }
+
+  async generateAccessToken(auth: UserDocument) {
+    const payload = { userId: auth?._id, role: auth?.role }
 
     return this.jwtService.sign(payload, {
       secret: this.configService.get<string>(
@@ -64,11 +115,9 @@ export class AuthService {
     })
   }
 
-  async generateRefreshToken(
-    userId: Types.ObjectId,
-    role: string
-  ) {
-    const payload = { userId, role }
+  async generateRefreshToken(auth: UserDocument) {
+    const payload = { userId: auth?._id, role: auth?.role }
+
     return this.jwtService.sign(payload, {
       secret: this.configService.get<string>(
         'jwt.refreshTokenSecret'
@@ -80,6 +129,7 @@ export class AuthService {
   }
 
   async verifyToken(token: string, secret: string) {
+    console.log(token, secret)
     return this.jwtService.verify(token, { secret })
   }
 }
